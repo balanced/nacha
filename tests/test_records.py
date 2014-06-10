@@ -1,3 +1,5 @@
+import datetime
+
 import nacha
 
 from . import TestCase
@@ -75,78 +77,78 @@ class TestCompanyBatchHeader(TestRecord):
         self.assertEqual(cbh.service_class_code, 200)
         self.assertEqual(cbh.company_name, 'ALALALAD')
         self.assertEqual(cbh.company_discretionary_data, 'ACH Settlement')
-        self.assertEqual(cbh.company_id, '2342342347')
+        self.assertEqual(cbh.company_id, '2273720697')
         self.assertEqual(cbh.standard_entry_class, 'PPD')
         self.assertEqual(cbh.company_entry_description, 'payouts')
         self.assertEqual(cbh.company_descriptive_date, '')
-        self.assertEqual(cbh.effective_entry_date, 130116)
+        self.assertEqual(cbh.effective_entry_date, datetime.date(2013, 1, 16))
         self.assertEqual(cbh.settlement_date, '')
         self.assertEqual(cbh.originator_status, 1)
-        self.assertEqual(cbh.originating_dfi_id, 9100001)
+        self.assertEqual(cbh.originating_dfi_id, 12737206)
         self.assertEqual(cbh.batch_number, 1)
 
 
-class TestEntryDetailRecord(TestRecord):
+class TestEntryDetail(TestRecord):
 
     def setUp(self):
         fixture = self.fixture_line(3, 'sample')
         self.record = fixture.strip('\n')
-        self.assertEqual(len(self.record), nacha.EntryDetailRecord.length)
+        self.assertEqual(len(self.record), nacha.EntryDetail.length)
 
     def test_construction_of_entry_detail_record(self):
-        edr = nacha.EntryDetailRecord.load(self.record)
+        edr = nacha.EntryDetail.load(self.record)
         self.assertEqual(edr.record_type, '6')
         self.assertEqual(edr.transaction_code, 22)
         self.assertEqual(edr.receiving_dfi_trn, 11234567)
         self.assertEqual(edr.receiving_dfi_trn_check_digit, 8)
-        self.assertEqual(edr.receiving_dfi_account_number, '2342342349')
+        self.assertEqual(edr.receiving_dfi_account_number, '1123456789')
         self.assertEqual(edr.amount, 12345)
-        self.assertEqual(edr.individual_id, '24234239')
+        self.assertEqual(edr.individual_id, '98789789')
         self.assertEqual(edr.individual_name, 'Test Credit 1')
         self.assertEqual(edr.discretionary_data, '')
         self.assertEqual(edr.addenda_record_indicator, 0)
-        self.assertEqual(edr.trace_number, 91000010000001)
+        self.assertEqual(edr.trace_number, 127372060000001)
 
     def test_serialization_of_record(self):
-        fh = nacha.EntryDetailRecord.load(self.record)
+        fh = nacha.EntryDetail.load(self.record)
         self.assertEqual(fh.dump(), self.record)
-        self.assertEqual(len(fh.dump()), nacha.EntryDetailRecord.length)
+        self.assertEqual(len(fh.dump()), nacha.EntryDetail.length)
 
 
-class TestCompanyBatchControlRecord(TestRecord):
+class TestCompanyBatchControl(TestRecord):
 
     def setUp(self):
         fixture = self.fixture_line(5, 'sample')
         self.record = fixture.strip('\n')
-        self.assertEqual(len(self.record), nacha.CompanyBatchControlRecord.length)
+        self.assertEqual(len(self.record), nacha.CompanyBatchControl.length)
 
     def test_construction_of_company_batch_control_record(self):
-        cbcr = nacha.CompanyBatchControlRecord.load(self.record)
+        cbcr = nacha.CompanyBatchControl.load(self.record)
         self.assertEqual(cbcr.record_type, '8')
         self.assertEqual(cbcr.service_class_code, 200)
         self.assertEqual(cbcr.entry_addenda_count, 2)
         self.assertEqual(cbcr.entry_hash, 24388701)
         self.assertEqual(cbcr.total_batch_debit_entry_amount, 0)
         self.assertEqual(cbcr.total_batch_credit_entry_amount, 12490)
-        self.assertEqual(cbcr.company_id, '2342342347')
+        self.assertEqual(cbcr.company_id, '2273720697')
         self.assertEqual(cbcr.message_authentication_code, '')
         self.assertEqual(cbcr.blank, '')
-        self.assertEqual(cbcr.originating_dfi_id, 9100001)
+        self.assertEqual(cbcr.originating_dfi_id, 12737206)
         self.assertEqual(cbcr.batch_number, 1)
 
 
-class TestFileControlRecord(TestRecord):
+class TestFileControl(TestRecord):
 
     def setUp(self):
         fixture = self.fixture_line(6, 'sample')
         self.record = fixture.strip('\n')
-        self.assertEqual(len(self.record), nacha.FileControlRecord.length)
+        self.assertEqual(len(self.record), nacha.FileControl.length)
 
     def test_construction_of_file_control_record(self):
-        fcr = nacha.FileControlRecord.load(self.record)
+        fcr = nacha.FileControl.load(self.record)
         self.assertEqual(fcr.record_type, '9')
         self.assertEqual(fcr.batch_count, 1)
-        self.assertEqual(fcr.block_count, 1)
+        self.assertEqual(fcr.block_count, 2)
         self.assertEqual(fcr.entry_addenda_record_count, 2)
         self.assertEqual(fcr.entry_hash_total, 24388701)
         self.assertEqual(fcr.total_file_debit_entry_amount, 0)
