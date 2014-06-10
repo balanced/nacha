@@ -17,6 +17,7 @@ install_requires = [
 extras_require = {
     'tests': [
         'nose >=1.0,<2.0',
+        'unittest2 >=0.5.1,<0.6',
     ],
 }
 

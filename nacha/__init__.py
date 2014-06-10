@@ -322,7 +322,7 @@ class Writer(object):
         self.fo = fo
         self.created_at = None
         self._ctxs = []
-        self._batch_numbers = itertools.count(start=1)
+        self._batch_numbers = itertools.count(1)
         self._default_at = None
         self._entry_count = 0
 
