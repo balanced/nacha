@@ -68,6 +68,7 @@ __all__ = [
 ]
 
 import collections
+import contextlib
 import datetime
 import itertools
 
@@ -566,16 +567,15 @@ class Writer(object):
             ))
         return self._ctxs.pop()
 
-    class _close(object):
-
-        def __init__(self, close):
-            self.close = close
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            self.close(exc_value)
+    @contextlib.contextmanager
+    def _close(self, close):
+        try:
+            yield
+        except Exception, ex:
+            close(ex)
+            raise
+        else:
+            close()
 
 
 class Malformed(ValueError):
