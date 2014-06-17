@@ -444,6 +444,8 @@ class Writer(object):
                             'payment_related_information': addednum
                         }
                     self.entry_addendum(**addednum)
+            detail, addenda = self._entry_detail, self._entry_addenda
+        return detail, addenda
 
     def begin_entry(self,
                     transaction_code,
@@ -468,7 +470,8 @@ class Writer(object):
             individual_id=individual_id,
             individual_name=individual_name,
             trace_number=trace_number or self._trace_number(),
-            discretionary_data=discretionary_data
+            discretionary_data=discretionary_data,
+            addenda_record_indicator=0,
         )
         return self._push(self.end_entry)
 
@@ -479,6 +482,7 @@ class Writer(object):
         if not self.in_entry_context:
             raise Exception('Not in entry context')
 
+        self._entry_detail.addenda_record_indicator = 1
         record = self.entry_addendum_cls(
             payment_related_information=payment_related_information,
             addenda_sequence_number=len(self._entry_addenda),
@@ -589,7 +593,7 @@ class Malformed(ValueError):
         )
 
 
-class Reader(collections.Iterator):
+class Reader(bryl.Reader):
 
     record_types = dict(
         (record_cls.record_type.value, record_cls)
@@ -603,46 +607,27 @@ class Reader(collections.Iterator):
         ]
     )
 
-    def __init__(self, fo, include_terminal=False):
-        self.fo = fo
-        self.include_terminal = include_terminal
-        self.line_num = 1
-        self.retry = None
+    # bryl.Reader
 
-    # collections.Iterator
+    record_type = Record
 
-    def __iter__(self):
-        return self
+    def as_record_type(self, line, line_no):
+        record_type = self.record_type.load(line).record_type
+        if record_type in self.record_types:
+            return self.record_types[record_type]
+        raise self.malformed(
+            line_no, 'unexpected record_type {0}'.format(record_type),
 
-    def next(self):
-        line, num = self._line()
-        if line is None:
-            raise StopIteration()
-
-        try:
-            record_type = Record.load(line).record_type
-            if record_type not in self.record_types:
-                raise Malformed(
-                    self._name, num, 'invalid record_type "{}"'.format(record_type)
-                )
-            record_cls = self.record_types[record_type]
-            record = record_cls.load(line)
-        except Record.field_type.error_type, ex:
-            raise Malformed(self._name, num, str(ex))
-
-        if not self.include_terminal:
-            return record
-        record_terminal = line[record_cls.length:]
-        return record, record_terminal
+        )
 
     # structured
 
     def file_header(self):
-        return self._record(FileHeader)
+        return self.next_record(FileHeader)
 
     def company_batches(self):
         while True:
-            header = self._record(CompanyBatchHeader, None)
+            header = self.next_record(CompanyBatchHeader, None)
             if not header:
                 break
             yield header
@@ -656,68 +641,19 @@ class Reader(collections.Iterator):
             yield detail, addenda
 
     def entry_detail(self, default=None):
-        return self._record(EntryDetail, default)
+        return self.next_record(EntryDetail, default)
 
     def entry_addenda(self, default=None):
         addenda = []
         while True:
-            record = self._record(EntryDetailAddendum, None)
+            record = self.next_record(EntryDetailAddendum, None)
             if not record:
                 break
             addenda.append(record)
         return addenda
 
     def company_batch_control(self):
-        return self._record(CompanyBatchControl)
+        return self.next_record(CompanyBatchControl)
 
     def file_control(self):
-        return self._record(FileControl)
-
-    # internals
-
-    def _name(self):
-        return getattr(self.fo, 'name', '<memory>')
-
-    def _line(self):
-        if self.retry:
-            line, num = self.retry
-            self.retry = None
-        else:
-            line = self.fo.readline()
-            if not line:
-                return None, self.line_num
-            num = self.line_num
-            self.line_num += 1
-        return line, num
-
-    def _record(self, expected_cls, default='raise'):
-        line, num = self._line()
-        if line is None:
-            if default == 'raise':
-                raise Malformed(self._name(), num, 'unexpected EOF')
-            return default
-
-        # probe
-        try:
-            record_type = Record.load(line).record_type
-        except Record.field_type.error_type, ex:
-            self.retry = line, num
-            raise Malformed(str(ex), num, str(ex))
-
-        # match
-        if expected_cls.record_type.value != record_type:
-            self.retry = line, num
-            if default == 'raise':
-                raise Malformed(
-                    self._name(), num, 'unexpected record_type {}'.format(record_type),
-                )
-            return default
-
-        # load
-        try:
-            record = expected_cls.load(line)
-        except Record.field_type.error_type, ex:
-            self.retry = line, num
-            raise Malformed(str(ex), num, str(ex))
-
-        return record
+        return self.next_record(FileControl)
