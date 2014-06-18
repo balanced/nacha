@@ -63,6 +63,9 @@ __all__ = [
     'EntryDetailAddendum',
     'CompanyBatchControl',
     'FileControl',
+    'ServiceClassCodes',
+    'StandardEntryClasses',
+    'TransactionCodes',
     'Writer',
     'Reader',
 ]
@@ -82,6 +85,14 @@ Date = bryl.Date
 Time = bryl.Time
 
 Alphanumeric = bryl.Alphanumeric
+
+
+class Enum(dict):
+
+    def __init__(self, **kwargs):
+        super(Enum, self).__init__(**kwargs)
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
 
 
 class Record(bryl.Record):
@@ -124,15 +135,44 @@ class FileHeader(Record):
     reference_code = Alphanumeric(8, default='')
 
 
+ServiceClassCodes = Enum(
+    MIXED_DEBITS_CREDITS=200,
+    CREDITS=220,
+    DEBITS=225,
+)
+
+StandardEntryClasses = Enum(
+    ARC='ARC',  # Accounts Receivable Entry
+    CIE='CIE',  # Customer Initiated Entry
+    MTE='MTE',  # Machine Transfer Entry
+    PBR='PBR',  # Consumer Cross-Border Payment
+    POP='POP',  # Point-of-Purchase
+    PPD='PPD',  # Prearranged Payment & Deposit
+    POS='POS',  # Point of Sale Entry/Shared Network Transaction
+    SHR='SHR',  # Point of Sale Entry/Shared Network Transaction
+    RCK='RCK',  # Re-presented Check Entry
+    TEL='TEL',  # Telephone-Initiated Entry
+    WEB='WEB',  # Internet-Initiated Entry
+    CBR='CBR',  # Corporate Cross-Border Payment
+    CCD='CCD',  # Cash Concentration or Disbursement
+    CTX='CTX',  # Corporate Trade Exchange
+    ACK='ACK',  # Acknowledgment Entries
+    ATX='ATX',  # Acknowledgment Entries
+    ADV='ADV',  # Automated Accounting Advice
+    COR='COR',  # Automated Notification of Change or Refused Notification of Change
+    DNE='DNE',  # Death Notification Entry
+    ENR='ENR',  # Automated Enrollment Entry
+    TRC='TRC',  # Truncated Entries
+    TRX='TRX',  # Truncated Entries
+    XCK='XCK',  # Destroyed Check Entry'
+)
+
+
 class CompanyBatchHeader(Record):
 
     record_type = Record.record_type.constant('5')
 
-    service_class_code = Numeric(3, enum=dict(
-        MIXED_DEBITS_CREDITS=200,
-        CREDITS=220,
-        DEBITS=225,
-    ))
+    service_class_code = Numeric(3, enum=ServiceClassCodes)
 
     company_name = Alphanumeric(length=16)
 
@@ -140,31 +180,7 @@ class CompanyBatchHeader(Record):
 
     company_id = Alphanumeric(10)
 
-    standard_entry_class = Alphanumeric(3, enum=dict(
-        ARC='ARC',  # Accounts Receivable Entry
-        CIE='CIE',  # Customer Initiated Entry
-        MTE='MTE',  # Machine Transfer Entry
-        PBR='PBR',  # Consumer Cross-Border Payment
-        POP='POP',  # Point-of-Purchase
-        PPD='PPD',  # Prearranged Payment & Deposit
-        POS='POS',  # Point of Sale Entry/Shared Network Transaction
-        SHR='SHR',  # Point of Sale Entry/Shared Network Transaction
-        RCK='RCK',  # Re-presented Check Entry
-        TEL='TEL',  # Telephone-Initiated Entry
-        WEB='WEB',  # Internet-Initiated Entry
-        CBR='CBR',  # Corporate Cross-Border Payment
-        CCD='CCD',  # Cash Concentration or Disbursement
-        CTX='CTX',  # Corporate Trade Exchange
-        ACK='ACK',  # Acknowledgment Entries
-        ATX='ATX',  # Acknowledgment Entries
-        ADV='ADV',  # Automated Accounting Advice
-        COR='COR',  # Automated Notification of Change or Refused Notification of Change
-        DNE='DNE',  # Death Notification Entry
-        ENR='ENR',  # Automated Enrollment Entry
-        TRC='TRC',  # Truncated Entries
-        TRX='TRX',  # Truncated Entries
-        XCK='XCK',  # Destroyed Check Entry'
-    ))
+    standard_entry_class = Alphanumeric(3, enum=StandardEntryClasses)
 
     company_entry_description = Alphanumeric(10)
 
@@ -182,25 +198,27 @@ class CompanyBatchHeader(Record):
     batch_number = Numeric(7)
 
 
+TransactionCodes = Enum(
+    CHECKING_RETURNED_CREDIT=21,
+    CHECKING_CREDIT=22,
+    CHECKING_PRE_NOTE_CREDIT=23,
+    CHECKING_RETURNED_DEBIT=26,
+    CHECKING_DEBIT=27,
+    CHECKING_PRE_NOTE_DEBIT=28,
+    SAVINGS_RETURNED_CREDIT=31,
+    SAVINGS_CREDIT=32,
+    SAVINGS_PRE_NOTE_CREDIT=33,
+    SAVINGS_RETURNED_DEBIT=36,
+    SAVINGS_DEBIT=37,
+    SAVINGS_PRE_NOTE_DEBIT=38
+)
+
+
 class EntryDetail(Record):
 
     record_type = Record.record_type.constant('6')
 
-    transaction_code = Numeric(2, enum=dict(
-        CHECKING_RETURNED_CREDIT=21,
-        CHECKING_CREDIT=22,
-        CHECKING_PRE_NOTE_CREDIT=23,
-        CHECKING_RETURNED_DEBIT=26,
-        CHECKING_DEBIT=27,
-        CHECKING_PRE_NOTE_DEBIT=28,
-
-        SAVINGS_RETURNED_CREDIT=31,
-        SAVINGS_CREDIT=32,
-        SAVINGS_PRE_NOTE_CREDIT=33,
-        SAVINGS_RETURNED_DEBIT=36,
-        SAVINGS_DEBIT=37,
-        SAVINGS_PRE_NOTE_DEBIT=38
-    ))
+    transaction_code = Numeric(2, enum=TransactionCodes)
 
     receiving_dfi_trn = Numeric(8)
 
@@ -248,8 +266,8 @@ class EntryDetail(Record):
         return self.transaction_code % 10 in (1, 6)
 
     @property
-    def receiving_dfi_routing_num(self):
-        return self.receiving_dfi_trn + self.receiving_dfi_trn_check_digit
+    def receiving_dfi_routing_number(self):
+        return (self.receiving_dfi_trn * 10) + self.receiving_dfi_trn_check_digit
 
 
 class EntryDetailAddendum(Record):
@@ -460,6 +478,11 @@ class Writer(object):
         if not self.in_company_batch_context():
             raise Exception('Not in company batch context')
         self._entry_addenda = []
+        if len(str(receiving_dfi_routing_number)) != 9:
+            raise ValueError(
+                'receiving_dfi_routing_number {0} length != 9'
+                .format(receiving_dfi_routing_number)
+            )
         receiving_dfi_routing_number = str(receiving_dfi_routing_number)
         self._entry_detail = self.entry_detail_cls(
             transaction_code=transaction_code,
