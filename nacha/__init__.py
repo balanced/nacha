@@ -99,6 +99,9 @@ class Record(bryl.Record):
 
     record_type = Alphanumeric(1)
 
+    def copy(self):
+        return type(self)(**self)
+
 
 class FileHeader(Record):
 
@@ -363,7 +366,7 @@ class Writer(object):
 
         self._default_at = created_at = created_at or datetime.datetime.utcnow()
 
-        file_header = FileHeader(
+        self.file_header = FileHeader(
             file_creation_date=created_at.date(),
             file_creation_time=created_at.time(),
             immediate_destination=immediate_destination,
@@ -374,10 +377,10 @@ class Writer(object):
             reference_code=reference_code,
         )
         self.created_at = created_at
-        self.write(file_header)
+        self.write(self.file_header)
 
         # file control
-        self._file_control = FileControl(
+        self.file_control = FileControl(
             batch_count=0,
             block_count=0,
             entry_addenda_record_count=0,
@@ -536,12 +539,12 @@ class Writer(object):
 
                 # file control
                 if self._entry_detail.is_debit:
-                    self._file_control.total_file_debit_entry_amount += self._entry_detail.amount
+                    self.file_control.total_file_debit_entry_amount += self._entry_detail.amount
                 elif self._entry_detail.is_credit:
-                    self._file_control.total_file_credit_entry_amount += self._entry_detail.amount
-                self._file_control.entry_addenda_record_count += 1 + len(self._entry_addenda)
-                self._file_control.entry_hash_total = (
-                    self._file_control.entry_hash_total + self._entry_detail.receiving_dfi_trn
+                    self.file_control.total_file_credit_entry_amount += self._entry_detail.amount
+                self.file_control.entry_addenda_record_count += 1 + len(self._entry_addenda)
+                self.file_control.entry_hash_total = (
+                    self.file_control.entry_hash_total + self._entry_detail.receiving_dfi_trn
                 ) % self.HASH_MOD
 
                 self._entry_count += 1
@@ -556,8 +559,8 @@ class Writer(object):
                 self.write(self._company_batch_control)
 
                 # file control
-                self._file_control.batch_count += 1
-                self._file_control.block_count += 1
+                self.file_control.batch_count += 1
+                self.file_control.block_count += 1
         finally:
             self._pop(self.end_company_batch)
 
@@ -567,9 +570,9 @@ class Writer(object):
         try:
             if ex is None:
                 # file control
-                self._file_control.block_count += 1
+                self.file_control.block_count += 1
 
-                self.write(self._file_control)
+                self.write(self.file_control)
         finally:
             self._pop(self.end_file)
 
@@ -617,6 +620,8 @@ class Malformed(ValueError):
 
 
 class Reader(bryl.Reader):
+
+    error_types = (Malformed, Record.field_type.error_type)
 
     record_types = dict(
         (record_cls.record_type.value, record_cls)
