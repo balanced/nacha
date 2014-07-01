@@ -3,7 +3,7 @@ python:
   - 2.6
   - 2.7
 install:
-  - pip install -e .[tests] --use-mirrors
+  - pip install -e .[tests]
   - pip install coveralls
 script:
   - py.test tests/ --cov=nacha --cov-report term-missing
