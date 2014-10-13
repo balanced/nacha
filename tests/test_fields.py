@@ -19,7 +19,7 @@ class TestAlphaNumeric(TestCase):
         with self.assertRaises(nacha.Alphanumeric.error_type) as exc:
             self.field.pack('BALANCEDバカ'.encode('utf-8'))
         self.assertIn(
-            b'has invalid character', exc.exception.message,
+            'has invalid character', exc.exception.message,
         )
 
     def test_attributes(self):

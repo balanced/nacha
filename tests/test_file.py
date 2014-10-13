@@ -49,7 +49,7 @@ class TestWriter(TestCase):
                      company_entry_description='payouts',
                      originating_dfi_id='12737206',
                      effective_entry_date=None,
-                     company_discretionary_data='ACH Settlement',
+                     company_discretionary_data='ACH SETTLEMENT',
                  ):
                 for credit in self.credits:
                     writer.entry(**credit)

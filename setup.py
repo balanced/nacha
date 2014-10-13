@@ -1,18 +1,18 @@
 import re
-import setuptools
+import setuptools.command.test
 
 
-version = (
-    re
-    .compile(r".*__version__ = '(.*?)'", re.S)
-    .match(open('nacha/__init__.py').read())
-    .group(1)
-)
+class PyTest(setuptools.command.test.test):
 
-packages = setuptools.find_packages('.', exclude=('tests', 'tests.*'))
+    def finalize_options(self):
+        setuptools.command.test.test.finalize_options(self)
+        self.test_args = ['tests']
+        self.test_suite = True
 
-install_requires = [
-]
+    def run_tests(self):
+        import pytest
+        pytest.main(self.test_args)
+
 
 extras_require = {
     'tests': [
@@ -31,16 +31,17 @@ setuptools.setup(
         .group(1)
     ),
     url='https://github.com/bninja/nacha',
-    author='Egon Spengler',
-    author_email='egon+nacha@gb.com',
-    description='',
+    author='Balanced',
+    author_email='dev+nacha@balancedpayments.com',
+    description='NACHA',
     long_description='',
     platforms='any',
     include_package_data=True,
-    install_requires=install_requires,
+    install_requires=[],
     extras_require=extras_require,
     tests_require=extras_require['tests'],
-    packages=packages,
+    packages=setuptools.find_packages('.', exclude=('tests', 'tests.*')),
+    cmdclass={'test': PyTest},
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
