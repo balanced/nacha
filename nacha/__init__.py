@@ -57,6 +57,7 @@ Or structured like this:
 __version__ = '0.1.0'
 
 __all__ = [
+    'ctx',
     'FileHeader',
     'CompanyBatchHeader',
     'EntryDetail',
@@ -77,6 +78,8 @@ import itertools
 
 from .packages import bryl
 
+
+ctx = bryl.ctx(alpha_upper=True)
 
 Numeric = bryl.Numeric
 
@@ -202,15 +205,22 @@ class CompanyBatchHeader(Record):
 
 
 TransactionCodes = Enum(
+    # credit checking
     CHECKING_RETURNED_CREDIT=21,
     CHECKING_CREDIT=22,
     CHECKING_PRE_NOTE_CREDIT=23,
+
+    # debit checking
     CHECKING_RETURNED_DEBIT=26,
     CHECKING_DEBIT=27,
     CHECKING_PRE_NOTE_DEBIT=28,
+
+    # credit savings
     SAVINGS_RETURNED_CREDIT=31,
     SAVINGS_CREDIT=32,
     SAVINGS_PRE_NOTE_CREDIT=33,
+
+    # debit savings
     SAVINGS_RETURNED_DEBIT=36,
     SAVINGS_DEBIT=37,
     SAVINGS_PRE_NOTE_DEBIT=38
@@ -220,6 +230,31 @@ TransactionCodes = Enum(
 class EntryDetail(Record):
 
     record_type = Record.record_type.constant('6')
+
+    @classmethod
+    def transaction_code_for(cls,
+                             amount,
+                             receiving_type,
+                             is_return=False,
+                             is_prenote=False,
+        ):
+        if is_return:
+            code = TransactionCodes.CHECKING_RETURNED_CREDIT
+        elif is_prenote or amount == 0:
+            code = TransactionCodes.CHECKING_PRE_NOTE_CREDIT
+        else:
+            code = TransactionCodes.CHECKING_CREDIT
+        if amount < 0:
+            code += 5
+        if receiving_type.lower() == 'checking':
+            pass
+        elif receiving_type.lower() == 'savings':
+            code += 10
+        else:
+            raise ValueError(
+                'Invalid receiving_type={0!r}'.format(receiving_type)
+            )
+        return code
 
     transaction_code = Numeric(2, enum=TransactionCodes)
 
@@ -272,6 +307,12 @@ class EntryDetail(Record):
     def receiving_dfi_routing_number(self):
         return (self.receiving_dfi_trn * 10) + self.receiving_dfi_trn_check_digit
 
+    def mask(self):
+        self.receiving_dfi_account_number = (
+            'X' * type(self).receiving_dfi_account_number.length
+        )
+        return self
+
 
 class EntryDetailAddendum(Record):
 
@@ -284,6 +325,34 @@ class EntryDetailAddendum(Record):
     addenda_sequence_number = Numeric(4)
 
     entry_detail_sequence_number = Numeric(7)
+
+
+class Entry(collections.namedtuple('Entry', ['detail', 'addenda'])):
+
+    @property
+    def is_rejection(self):
+        return self.detail.is_rejection
+
+    def mask(self):
+        self.detail.mask()
+        return self
+
+    @classmethod
+    def load(cls, raw):
+        detail = EntryDetail.load(raw)
+        raw = raw[EntryDetail.length + len(Writer.RECORD_TERMINAL):]
+        addenda = []
+        while raw:
+            addendum = EntryDetailAddendum.load(raw)
+            addenda.append(addendum)
+            raw = raw[EntryDetailAddendum.length + len(Writer.RECORD_TERMINAL):]
+        return cls(detail=detail, addenda=addenda)
+
+    def dump(self):
+        return Writer.RECORD_TERMINAL.join(
+            [self.detail.dump()] +
+            [addendum.dump() for addendum in self.addenda]
+        )
 
 
 class CompanyBatchControl(Record):
@@ -516,7 +585,6 @@ class Writer(object):
         )
         self._entry_addenda.append(record)
 
-
     def end_entry(self, ex=None):
         if not self.in_entry_context:
             raise Exception('Not in entry context')
@@ -559,8 +627,8 @@ class Writer(object):
                 self.write(self._company_batch_control)
 
                 # file control
+                self._entry_count = 0
                 self.file_control.batch_count += 1
-                self.file_control.block_count += 1
         finally:
             self._pop(self.end_company_batch)
 
@@ -619,7 +687,7 @@ class Malformed(ValueError):
         )
 
 
-class Reader(bryl.Reader):
+class Reader(bryl.LineReader):
 
     error_types = (Malformed, Record.field_type.error_type)
 
@@ -635,17 +703,25 @@ class Reader(bryl.Reader):
         ]
     )
 
-    # bryl.Reader
+    def filter(self, *record_types):
+        for record in self:
+            if any(
+                   isinstance(record, record_type)
+                   for record_type in record_types
+                ):
+                yield record
+
+    # bryl.LineReader
 
     record_type = Record
 
-    def as_record_type(self, line, line_no):
-        record_type = self.record_type.load(line).record_type
-        if record_type in self.record_types:
-            return self.record_types[record_type]
-        raise self.malformed(
-            line_no, 'unexpected record_type {0}'.format(record_type),
-
+    @staticmethod
+    def as_record_type(reader, data, offset):
+        record_type = reader.record_type.load(data).record_type
+        if record_type in reader.record_types:
+            return reader.record_types[record_type]
+        raise reader.malformed(
+            offset, 'unexpected record_type {0}'.format(record_type),
         )
 
     # structured
@@ -666,7 +742,7 @@ class Reader(bryl.Reader):
             if not detail:
                 break
             addenda = self.entry_addenda()
-            yield detail, addenda
+            yield Entry(detail=detail, addenda=addenda)
 
     def entry_detail(self, default=None):
         return self.next_record(EntryDetail, default)
