@@ -23,9 +23,8 @@ record format used to represent financial transactions composed like this:
         ...
     FileControl
 
-which we express as `bryl <https://github.com/balanced/bryl/>`_.
-
-Writing is done like this:
+which we express using `bryl <https://github.com/balanced/bryl/>`_. Writing is
+done like this:
 
 .. code:: python
 
