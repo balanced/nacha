@@ -9,11 +9,3 @@ script:
 - py.test tests/ --cov=nacha --cov-report term-missing
 after_success:
 - coveralls
-deploy:
-  provider: pypi
-  user: somepie
-  password:
-    secure: sPitEFt9izHil0GRJsIhiwmjoD9HqqeLZeJxIqRUQZ4KQtZSy6WXxXKZ2Dg6DTDPB4kmSP2yUA/591uNCYBYGk/ldOS77JmM9/JKeI7AiWOWSIs6tVcXb38pAgk7ZgaYmE4fU1kg7RYMzkFEnrSBO4gbQMHTy/7dFqQ4eOsFg4c=
-  on:
-    branch: master
-    tags: true

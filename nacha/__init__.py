@@ -1,5 +1,5 @@
 """
-`NACHA <http://www.regaltek.com/docs/NACHA%20Format.pdf>`_ is a fixed sized
+`NACHA <http://www.regaltek.com/docs/NACHA Format.pdf>`_ is a fixed sized
 record format used to represent financial transactions composed like this:
 
 .. code::
@@ -14,6 +14,7 @@ record format used to represent financial transactions composed like this:
         ...
     FileControl
 
+which we express as `bryl <https://github.com/balanced/bryl/>`_.
 
 Writing is done like this:
 

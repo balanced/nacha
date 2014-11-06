@@ -11,6 +11,7 @@ class PyTest(setuptools.command.test.test):
 
     def run_tests(self):
         import pytest
+
         pytest.main(self.test_args)
 
 
@@ -30,7 +31,7 @@ setuptools.setup(
         .match(open('nacha/__init__.py').read())
         .group(1)
     ),
-    url='https://github.com/bninja/nacha',
+    url='https://github.com/balanced/nacha',
     author='Balanced',
     author_email='dev+nacha@balancedpayments.com',
     description='NACHA',
